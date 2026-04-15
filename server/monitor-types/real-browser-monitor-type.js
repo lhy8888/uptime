@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 const config = require("../config");
 const { RemoteBrowser } = require("../remote-browser");
 const { commandExists } = require("../util-server");
+require("../security-hardening");
 
 /**
  * Cached instance of a browser
