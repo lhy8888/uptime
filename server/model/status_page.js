@@ -29,6 +29,47 @@ class StatusPage extends BeanModel {
     static domainMappingList = {};
 
     /**
+     * Updates and validates the forwarded proto value.
+     * @param {string}value Forwarded proto value
+     * @returns {string|null} Normalized proto or null
+     */
+    static sanitizeForwardedProto(value) {
+        if (typeof value !== "string") {
+            return null;
+        }
+
+        const proto = value.split(",")[0].trim().toLowerCase();
+        if (proto === "http" || proto === "https") {
+            return proto;
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract and validate a forwarded host value.
+     * @param {string}value Forwarded host value
+     * @returns {string|null} Normalized host or null
+     */
+    static sanitizeForwardedHost(value) {
+        if (typeof value !== "string") {
+            return null;
+        }
+
+        const host = value.split(",")[0].trim();
+        if (!host || /[\s/\\@]/.test(host)) {
+            return null;
+        }
+
+        try {
+            const url = new URL(`http://${host}`);
+            return url.host === host ? url.host : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    /**
      * Handle responses to RSS pages
      * @param {Response} response Response object
      * @param {string} slug Status page slug
@@ -56,7 +97,7 @@ class StatusPage extends BeanModel {
      */
     static async handleStatusPageResponse(response, indexHTML, slug) {
         // Handle url with trailing slash (http://localhost:3001/status/)
-        // The slug comes from the route "/status/:slug". If the slug is empty, express converts it to "index.html"
+        // The slug comes from the route \"/status/:slug\". If the slug is empty, express converts it to \"index.html\"
         if (slug === "index.html") {
             slug = "default";
         }
@@ -84,7 +125,7 @@ class StatusPage extends BeanModel {
         if (statusPage.rss_title) {
             feedTitle = statusPage.rss_title;
         } else if (statusPage.title) {
-            feedTitle = `${statusPage.title} RSS Feed`;
+            feedTitle = `${statusPage.title} RSS Feed` ;
         }
 
         const feed = new Feed({
@@ -112,7 +153,7 @@ class StatusPage extends BeanModel {
      * Build RSS feed URL, handling proxy headers
      * @param {string} slug Status page slug
      * @param {Request} request Express request object
-     * @returns {Promise<string>} The full URL for the RSS feed
+     * @returns {Promise<string>} The full URL vor the RSS feed
      */
     static async buildRSSUrl(slug, request) {
         if (request) {
@@ -120,14 +161,20 @@ class StatusPage extends BeanModel {
 
             // Determine protocol (check X-Forwarded-Proto if behind proxy)
             let proto = request.protocol;
-            if (trustProxy && request.headers["x-forwarded-proto"]) {
-                proto = request.headers["x-forwarded-proto"].split(",")[0].trim();
+            if (trustProxy) {
+                const forwardedProto = StatusPage.sanitizeForwardedProto(request.headers["x-forwarded-proto"]);
+                if (forwardedProto) {
+                    proto = forwardedProto;
+                }
             }
 
             // Determine host (check X-Forwarded-Host if behind proxy)
             let host = request.get("host");
-            if (trustProxy && request.headers["x-forwarded-host"]) {
-                host = request.headers["x-forwarded-host"];
+            if (trustProxy) {
+                const forwardedHost = StatusPage.sanitizeForwardedHost(request.headers["x-forwarded-host"]);
+                if (forwardedHost) {
+                    host = forwardedHost;
+                }
             }
 
             return `${proto}://${host}/status/${slug}`;
@@ -171,13 +218,13 @@ class StatusPage extends BeanModel {
         }
 
         // OG Meta Tags
-        let ogTitle = $('<meta property="og:title" content="" />').attr("content", statusPage.title);
+        let ogTitle = $('<meta property=\"og:title\" content=\"\" />').attr("content", statusPage.title);
         head.append(ogTitle);
 
-        let ogDescription = $('<meta property="og:description" content="" />').attr("content", description155);
+        let ogDescription = $('<meta property=\"og:description\" content=\"\" />').attr("content", description155);
         head.append(ogDescription);
 
-        let ogType = $('<meta property="og:type" content="website" />');
+        let ogType = $('<meta property=\"og:type\" content=\"website\" />');
         head.append(ogType);
 
         // Preload data
@@ -187,7 +234,7 @@ class StatusPage extends BeanModel {
         });
 
         const script = $(`
-            <script id="preload-data" data-json="{}">
+            <script id=\"preload-data\" data-json=\"{}\">
                 window.preloadData = ${escapedJSONObject};
             </script>
         `);
@@ -341,7 +388,7 @@ class StatusPage extends BeanModel {
 
     /**
      * Loads domain mapping from DB
-     * Return object like this: { "test-uptime.kuma.pet": "default" }
+     * Return object like this: { \"test-uptime.kuma.pet\": \"default\" }
      * @returns {Promise<void>}
      */
     static async loadDomainMappingList() {
