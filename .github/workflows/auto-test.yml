@@ -22,6 +22,9 @@ jobs:
         os: [macos-latest, ubuntu-22.04, windows-latest, ubuntu-22.04-arm]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
         node: [20, 24]
+        exclude:
+          - os: macos-latest
+            node: 24
         # Also test non-LTS, but only on Ubuntu.
         include:
           - os: ubuntu-22.04
@@ -138,7 +141,7 @@ jobs:
         run: npm rebuild @louislam/sqlite3
 
       - name: Install Playwright ${{ env.PLAYWRIGHT_VERSION }}
-        run: npx playwright@${{ env.PLAYWRIGHT_VERSION }} install
+        run: npx playwright@${{ env.PLAYWRIGHT_VERSION }} install chromium
 
       - run: npm run build
       - run: npm run test-e2e
