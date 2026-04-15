@@ -4,6 +4,24 @@ const plausibleAnalytics = require("./plausible-analytics");
 const matomoAnalytics = require("./matomo-analytics");
 
 /**
+ * Validate that an analytics script URL is safe to embed.
+ * @param {string} scriptUrl Analytics script URL
+ * @returns {boolean} True if URL is an http/https URL
+ */
+function isSafeAnalyticsScriptUrl(scriptUrl) {
+    if (typeof scriptUrl !== "string") {
+        return false;
+    }
+
+    try {
+        const url = new URL(scriptUrl);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
  * Returns a string that represents the javascript that is required to insert the selected Analytics' script
  * into a webpage.
  * @param {typeof import("../model/status_page").StatusPage} statusPage Status page populate HTML with
@@ -38,6 +56,7 @@ function isValidAnalyticsConfig(statusPage) {
             return statusPage.analyticsId != null;
         case "umami":
         case "plausible":
+            return statusPage.analyticsId != null && isSafeAnalyticsScriptUrl(statusPage.analyticsScriptUrl);
         case "matomo":
             return statusPage.analyticsId != null && statusPage.analyticsScriptUrl != null;
         default:
@@ -48,4 +67,5 @@ function isValidAnalyticsConfig(statusPage) {
 module.exports = {
     getAnalyticsScript,
     isValidAnalyticsConfig,
+    isSafeAnalyticsScriptUrl,
 };
