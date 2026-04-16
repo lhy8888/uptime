@@ -97,7 +97,7 @@ class StatusPage extends BeanModel {
      */
     static async handleStatusPageResponse(response, indexHTML, slug) {
         // Handle url with trailing slash (http://localhost:3001/status/)
-        // The slug comes from the route \"/status/:slug\". If the slug is empty, express converts it to \"index.html\"
+        // The slug comes from the route "/status/:slug". If the slug is empty, express converts it to "index.html"
         if (slug === "index.html") {
             slug = "default";
         }
@@ -125,7 +125,7 @@ class StatusPage extends BeanModel {
         if (statusPage.rss_title) {
             feedTitle = statusPage.rss_title;
         } else if (statusPage.title) {
-            feedTitle = `${statusPage.title} RSS Feed` ;
+            feedTitle = `${statusPage.title} RSS Feed`;
         }
 
         const feed = new Feed({
@@ -153,7 +153,7 @@ class StatusPage extends BeanModel {
      * Build RSS feed URL, handling proxy headers
      * @param {string} slug Status page slug
      * @param {Request} request Express request object
-     * @returns {Promise<string>} The full URL vor the RSS feed
+     * @returns {Promise<string>} The full URL for the RSS feed
      */
     static async buildRSSUrl(slug, request) {
         if (request) {
@@ -218,13 +218,13 @@ class StatusPage extends BeanModel {
         }
 
         // OG Meta Tags
-        let ogTitle = $('<meta property=\"og:title\" content=\"\" />').attr("content", statusPage.title);
+        let ogTitle = $('<meta property="og:title" content="" />').attr("content", statusPage.title);
         head.append(ogTitle);
 
-        let ogDescription = $('<meta property=\"og:description\" content=\"\" />').attr("content", description155);
+        let ogDescription = $('<meta property="og:description" content="" />').attr("content", description155);
         head.append(ogDescription);
 
-        let ogType = $('<meta property=\"og:type\" content=\"website\" />');
+        let ogType = $('<meta property="og:type" content="website" />');
         head.append(ogType);
 
         // Preload data
@@ -234,7 +234,7 @@ class StatusPage extends BeanModel {
         });
 
         const script = $(`
-            <script id=\"preload-data\" data-json=\"{}\">
+            <script id="preload-data" data-json="{}">
                 window.preloadData = ${escapedJSONObject};
             </script>
         `);
@@ -388,7 +388,7 @@ class StatusPage extends BeanModel {
 
     /**
      * Loads domain mapping from DB
-     * Return object like this: { \"test-uptime.kuma.pet\": \"default\" }
+     * Return object like this: { "test-uptime.kuma.pet": "default" }
      * @returns {Promise<void>}
      */
     static async loadDomainMappingList() {
