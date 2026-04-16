@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const StatusPage = require("../../server/model/status_page");
 
 test("status page forwarded header sanitizers only accept safe values", () => {
-    assert.equal(StatusPage.sanitizeForwardedProto("http",", "http");
+    assert.equal(StatusPage.sanitizeForwardedProto("http"), "http");
     assert.equal(StatusPage.sanitizeForwardedProto("https,  http"), "https");
     assert.equal(StatusPage.sanitizeForwardedProto("ftp"), null);
     assert.equal(StatusPage.sanitizeForwardedProto("javascript"), null);
