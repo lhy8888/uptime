@@ -37,9 +37,9 @@ class Proxy {
                 Supported protocols are ${this.SUPPORTED_PROXY_PROTOCOLS.join(", ")}."`);
         }
 
-        // When proxy is default update deactivate old default proxy
+        // When proxy is default update deactivate old default proxy for the same user only
         if (proxy.default) {
-            await R.exec("UPDATE proxy SET `default` = 0 WHERE `default` = 1");
+            await R.exec("UPDATE proxy SET `default` = 0 WHERE `default` = 1 AND user_id = ?", [userID]);
         }
 
         bean.user_id = userID;
@@ -49,7 +49,7 @@ class Proxy {
         bean.auth = proxy.auth;
         bean.username = proxy.username;
         bean.password = proxy.password;
-        bean.active = proxy.active || true;
+        bean.active = proxy.active !== undefined ? proxy.active : true;
         bean.default = proxy.default || false;
 
         await R.store(bean);
@@ -74,8 +74,8 @@ class Proxy {
             throw new Error("proxy not found");
         }
 
-        // Delete removed proxy from monitors if exists
-        await R.exec("UPDATE monitor SET proxy_id = null WHERE proxy_id = ?", [proxyID]);
+        // Delete removed proxy from the current user's monitors only
+        await R.exec("UPDATE monitor SET proxy_id = null WHERE proxy_id = ? AND user_id = ?", [proxyID, userID]);
 
         // Delete proxy from list
         await R.trash(bean);
