@@ -59,8 +59,8 @@ class RemoteBrowser {
             throw new Error("Remote Browser not found");
         }
 
-        // Delete removed remote browser from monitors if exists
-        await R.exec("UPDATE monitor SET remote_browser = null WHERE remote_browser = ?", [remoteBrowserID]);
+        // Delete removed remote browser from the current user's monitors only
+        await R.exec("UPDATE monitor SET remote_browser = null WHERE remote_browser = ? AND user_id = ?", [remoteBrowserID, userID]);
 
         await R.trash(bean);
     }

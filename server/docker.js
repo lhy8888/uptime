@@ -54,8 +54,8 @@ class DockerHost {
             throw new Error("docker host not found");
         }
 
-        // Delete removed proxy from monitors if exists
-        await R.exec("UPDATE monitor SET docker_host = null WHERE docker_host = ?", [dockerHostID]);
+        // Delete removed docker host from the current user's monitors only
+        await R.exec("UPDATE monitor SET docker_host = null WHERE docker_host = ? AND user_id = ?", [dockerHostID, userID]);
 
         await R.trash(bean);
     }
