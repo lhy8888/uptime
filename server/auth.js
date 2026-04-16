@@ -2,7 +2,7 @@ const basicAuth = require("express-basic-auth");
 const passwordHash = require("./password-hash");
 const { R } = require("redbean-node");
 const { log } = require("../src/util");
-const { loginRateLimiter, apiRateLimiter } = require("./rate-limiter");
+const { loginAttemptRateLimiter, apiAttemptRateLimiter } = require("./rate-limiter");
 const { Settings } = require("./settings");
 const dayjs = require("dayjs");
 
@@ -34,6 +34,15 @@ exports.login = async function (username, password) {
 };
 
 /**
+ * Get a stable per-client rate-limit key.
+ * @param {express.Request} req Express request object
+ * @returns {string} Rate-limit key
+ */
+function getClientRateLimitKey(req) {
+    return (req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || "unknown").replace(/^::ffff:/, "");
+}
+
+/**
  * Validate a provided API key
  * @param {string} key API key to verify
  * @returns {boolean} API is ok?
@@ -43,9 +52,18 @@ async function verifyAPIKey(key) {
         return false;
     }
 
+    const separatorIndex = key.indexOf("_");
+    if (!key.startsWith("uk") || separatorIndex <= 2 || separatorIndex >= key.length - 1) {
+        return false;
+    }
+
     // uk prefix + key ID is before _
-    let index = key.substring(2, key.indexOf("_"));
-    let clear = key.substring(key.indexOf("_") + 1, key.length);
+    let index = key.substring(2, separatorIndex);
+    let clear = key.substring(separatorIndex + 1, key.length);
+
+    if (!/^\d+$/.test(index)) {
+        return false;
+    }
 
     let hash = await R.findOne("api_key", " id=? ", [index]);
 
@@ -74,11 +92,12 @@ async function verifyAPIKey(key) {
  * @param {string} username Username to login with
  * @param {string} password Password to login with
  * @param {authCallback} callback Callback to handle login result
+ * @param {string} rateLimitKey Per-client rate limit key
  * @returns {void}
  */
-function apiAuthorizer(username, password, callback) {
+function apiAuthorizer(username, password, callback, rateLimitKey) {
     // API Rate Limit
-    apiRateLimiter.pass(null, 0).then((pass) => {
+    apiAttemptRateLimiter.pass(rateLimitKey, null, 0).then((pass) => {
         if (pass) {
             verifyAPIKey(password).then((valid) => {
                 if (!valid) {
@@ -87,7 +106,7 @@ function apiAuthorizer(username, password, callback) {
                 callback(null, valid);
                 // Only allow a set number of api requests per minute
                 // (currently set to 60)
-                apiRateLimiter.removeTokens(1);
+                apiAttemptRateLimiter.removeTokens(rateLimitKey, 1);
             });
         } else {
             log.warn("api-auth", "Failed API auth attempt: rate limit exceeded");
@@ -101,18 +120,19 @@ function apiAuthorizer(username, password, callback) {
  * @param {string} username Username to login with
  * @param {string} password Password to login with
  * @param {authCallback} callback Callback to handle login result
+ * @param {string} rateLimitKey Per-client rate limit key
  * @returns {void}
  */
-function userAuthorizer(username, password, callback) {
+function userAuthorizer(username, password, callback, rateLimitKey) {
     // Login Rate Limit
-    loginRateLimiter.pass(null, 0).then((pass) => {
+    loginAttemptRateLimiter.pass(rateLimitKey, null, 0).then((pass) => {
         if (pass) {
             exports.login(username, password).then((user) => {
                 callback(null, user != null);
 
                 if (user == null) {
                     log.warn("basic-auth", "Failed basic auth attempt: invalid username/password");
-                    loginRateLimiter.removeTokens(1);
+                    loginAttemptRateLimiter.removeTokens(rateLimitKey, 1);
                 }
             });
         } else {
@@ -130,8 +150,9 @@ function userAuthorizer(username, password, callback) {
  * @returns {Promise<void>}
  */
 exports.basicAuth = async function (req, res, next) {
+    const rateLimitKey = getClientRateLimitKey(req);
     const middleware = basicAuth({
-        authorizer: userAuthorizer,
+        authorizer: (username, password, callback) => userAuthorizer(username, password, callback, rateLimitKey),
         authorizeAsync: true,
         challenge: true,
     });
@@ -154,17 +175,18 @@ exports.basicAuth = async function (req, res, next) {
  */
 exports.apiAuth = async function (req, res, next) {
     if (!(await Settings.get("disableAuth"))) {
+        const rateLimitKey = getClientRateLimitKey(req);
         let usingAPIKeys = await Settings.get("apiKeysEnabled");
         let middleware;
         if (usingAPIKeys) {
             middleware = basicAuth({
-                authorizer: apiAuthorizer,
+                authorizer: (username, password, callback) => apiAuthorizer(username, password, callback, rateLimitKey),
                 authorizeAsync: true,
                 challenge: true,
             });
         } else {
             middleware = basicAuth({
-                authorizer: userAuthorizer,
+                authorizer: (username, password, callback) => userAuthorizer(username, password, callback, rateLimitKey),
                 authorizeAsync: true,
                 challenge: true,
             });
