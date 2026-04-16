@@ -7,6 +7,22 @@ const Maintenance = require("../model/maintenance");
 const server = UptimeKumaServer.getInstance();
 
 /**
+ * Load a maintenance owned by the current user.
+ * @param {number} maintenanceID Maintenance ID
+ * @param {number} userID Current user ID
+ * @returns {Promise<any>} Maintenance bean
+ */
+async function getOwnedMaintenance(maintenanceID, userID) {
+    const bean = await R.findOne("maintenance", " id = ? AND user_id = ? ", [maintenanceID, userID]);
+
+    if (!bean) {
+        throw new Error("Permission denied.");
+    }
+
+    return bean;
+}
+
+/**
  * Handlers for Maintenance
  * @param {Socket} socket Socket.io instance
  * @returns {void}
@@ -77,6 +93,7 @@ module.exports.maintenanceSocketHandler = (socket) => {
     socket.on("addMonitorMaintenance", async (maintenanceID, monitors, callback) => {
         try {
             checkLogin(socket);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             await R.exec("DELETE FROM monitor_maintenance WHERE maintenance_id = ?", [maintenanceID]);
 
@@ -105,10 +122,11 @@ module.exports.maintenanceSocketHandler = (socket) => {
         }
     });
 
-    // Add a new monitor_maintenance
+    // Add a new maintenance_status_page
     socket.on("addMaintenanceStatusPage", async (maintenanceID, statusPages, callback) => {
         try {
             checkLogin(socket);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             await R.exec("DELETE FROM maintenance_status_page WHERE maintenance_id = ?", [maintenanceID]);
 
@@ -176,6 +194,7 @@ module.exports.maintenanceSocketHandler = (socket) => {
     socket.on("getMonitorMaintenance", async (maintenanceID, callback) => {
         try {
             checkLogin(socket);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             log.debug("maintenance", `Get Monitors for Maintenance: ${maintenanceID} User ID: ${socket.userID}`);
 
@@ -200,6 +219,7 @@ module.exports.maintenanceSocketHandler = (socket) => {
     socket.on("getMaintenanceStatusPage", async (maintenanceID, callback) => {
         try {
             checkLogin(socket);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             log.debug("maintenance", `Get Status Pages for Maintenance: ${maintenanceID} User ID: ${socket.userID}`);
 
@@ -256,6 +276,7 @@ module.exports.maintenanceSocketHandler = (socket) => {
             checkLogin(socket);
 
             log.debug("maintenance", `Pause Maintenance: ${maintenanceID} User ID: ${socket.userID}`);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             let maintenance = server.getMaintenance(maintenanceID);
 
@@ -289,6 +310,7 @@ module.exports.maintenanceSocketHandler = (socket) => {
             checkLogin(socket);
 
             log.debug("maintenance", `Resume Maintenance: ${maintenanceID} User ID: ${socket.userID}`);
+            await getOwnedMaintenance(maintenanceID, socket.userID);
 
             let maintenance = server.getMaintenance(maintenanceID);
 
