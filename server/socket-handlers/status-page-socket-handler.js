@@ -6,6 +6,7 @@ const ImageDataURI = require("../image-data-uri");
 const Database = require("../database");
 const apicache = require("../modules/apicache");
 const StatusPage = require("../model/status_page");
+const analytics = require("../analytics/analytics");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
 const { Settings } = require("../settings");
 
@@ -340,10 +341,14 @@ module.exports.statusPageSocketHandler = (socket) => {
             statusPage.analytics_id = config.analyticsId;
             statusPage.analytics_script_url = config.analyticsScriptUrl;
             const validAnalyticsTypes = ["google", "umami", "plausible", "matomo"];
-            if (config.analyticsType !== null && !validAnalyticsTypes.includes(config.analyticsType)) {
+            if (config.analyticsType !== null && config.analyticsType !== undefined && !validAnalyticsTypes.includes(config.analyticsType)) {
                 throw new Error("Invalid analytics type");
             }
-            statusPage.analytics_type = config.analyticsType;
+            statusPage.analytics_type = config.analyticsType ?? null;
+
+            if (statusPage.analytics_type !== null && !analytics.isValidAnalyticsConfig(statusPage)) {
+                throw new Error("Invalid analytics config");
+            }
 
             await R.store(statusPage);
 
